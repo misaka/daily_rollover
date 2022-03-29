@@ -1,5 +1,7 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, TAbstractFile } from 'obsidian';
 
+import { DailyNote, Section, Task } from 'lib/DailyNote';
+
 // Remember to rename these classes and interfaces!
 
 interface DailyRolloverSettings {
@@ -94,16 +96,30 @@ export default class DailyRollover extends Plugin {
 		if (!this.isDailyNote(file)) return;
 		if (!this.isJustCreated(file)) return;
 
-		console.log(`New daily file found: ${file.path}`);
-		console.log(`Last daily note file: ${this.lastDailyNoteFile().path}`);
+		// Yes, this is just for the sake of naming, not a separate thing.
+		const dailyNoteFile = file;
+		console.log(`New daily file found: ${dailyNoteFile.path}`);
 
-		const lastDailyFile = this.lastDailyNoteFile();
-		const fileContents = await this.app.vault.read(lastDailyFile);
+		const lastDailyNote = await this.lastDailyNoteFile()
+			.then(lastDailyFile => this.app.vault.read(lastDailyFile))
+			.then(lastDailyContents => new DailyNote(lastDailyContents));
 
-		const sections = await this.getHeadingSections(fileContents)
-		sections.forEach((section) => {
-			console.log("Section ", section.heading, " tasks: ", section.tasks());
-		})
+		if (!lastDailyNote.hasUncheckedTasks()) return;
+
+		return await this.app.vault.read(dailyNoteFile)
+			.then(dailyContents => new DailyNote(dailyContents))
+			.then((dailyNote: DailyNote) => {
+				console.log(dailyNote);
+				return dailyNote.addUncheckedTasksFrom(lastDailyNote)
+			});
+	}
+
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
 	}
 
 	isDailyNote(file: TAbstractFile): boolean {
@@ -116,101 +132,10 @@ export default class DailyRollover extends Plugin {
 		return ((today.getTime() - file.stat.ctime) < 100); //  && !ignoreCreationTime;
 	}
 
-	async getHeadingSections(contents: string) {
-		return Array
-			.from(contents.matchAll(/\s{0,3}(#+)\s+(.*)\n((?:(?!\s*#).*\n)*)/g))
-			.map((m) => new Section(m[1].length, m[2], m[3]));
-	}
-
-	lastDailyNoteFile() {
+	async lastDailyNoteFile() {
 		return (this.app.vault.getAllLoadedFiles() as TFile[])
             .filter(f => f.path.match(/^Daily\/\d{4}-\d{2}-\d{2}.md$/))
             .sort((A, B) => B.name.localeCompare(A.name))
             .find(f => new Date(f.basename).getTime() < (Date.now() - this.ONE_DAY_IN_MS));
 	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
 }
-
-class Section {
-	level: number;
-	heading: string;
-	content: string;
-
-	constructor(level: number, heading: string, content: string) {
-		this.level = level;
-		this.heading = heading;
-		this.content = content;
-	}
-
-	tasks() {
-		return Array
-			.from(this.content.matchAll(/^(\s*- \[(.)\].*)$/gm))
-			.map(t => new Task(t[1], t[2]));
-	}
-}
-
-class Task {
-	content: string;
-	state: string;
-
-	constructor(content: string, state: string) {
-		this.content = content;
-		this.state = state;
-	}
-
-	isChecked(): boolean {
-		return this.state == "x";
-	}
-}
-
-// class SampleModal extends Modal {
-// 	constructor(app: App) {
-// 		super(app);
-// 	}
-
-// 	onOpen() {
-// 		const {contentEl} = this;
-// 		contentEl.setText('Woah!');
-// 	}
-
-// 	onClose() {
-// 		const {contentEl} = this;
-// 		contentEl.empty();
-// 	}
-// }
-
-// class DailyRolloverTab extends PluginSettingTab {
-// 	plugin: DailyRollover;
-
-// 	constructor(app: App, plugin: DailyRollover) {
-// 		super(app, plugin);
-// 		this.plugin = plugin;
-// 	}
-
-// 	display(): void {
-// 		const {containerEl} = this;
-
-// 		containerEl.empty();
-
-// 		containerEl.createEl('h2', {text: 'Settings for my awesome plugin.'});
-
-// 		new Setting(containerEl)
-// 			.setName('Setting #1')
-// 			.setDesc('It\'s a secret')
-// 			.addText(text => text
-// 				.setPlaceholder('Enter your secret')
-// 				.setValue(this.plugin.settings.mySetting)
-// 				.onChange(async (value) => {
-// 					console.log('Secret: ' + value);
-// 					this.plugin.settings.mySetting = value;
-// 					await this.plugin.saveSettings();
-// 				}));
-// 	}
-// }
