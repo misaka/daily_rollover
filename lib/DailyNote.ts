@@ -15,7 +15,7 @@ export class DailyNote {
 
 	async addUncheckedTasksFrom(previousNote: DailyNote) {
 		this.sections.forEach((section: Section) => {
-			const previousSection = previousNote.sections.find((ps: Section) => section.heading == ps.heading);
+            const previousSection = previousNote.sections.find((ps: Section) => section.heading == ps.heading);
 			if (!previousSection) return;
 
 			const uncheckedTasks = previousSection.uncheckedTasks();
@@ -41,7 +41,7 @@ export class Section {
 		this.content = content;
 
 		this.tasks = Array
-			.from(this.content.matchAll(/^(\s*- \[(.)\]\s+(.*))$/gm))
+			.from(this.content.matchAll(/^\n*(\s*- \[(.)\]\s+(.*))$/gm))
 			.map(t => new Task(t[1], t[2], t[3]));
 	}
 

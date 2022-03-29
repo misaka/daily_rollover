@@ -108,10 +108,7 @@ export default class DailyRollover extends Plugin {
 
 		return await this.app.vault.read(dailyNoteFile)
 			.then(dailyContents => new DailyNote(dailyContents))
-			.then((dailyNote: DailyNote) => {
-				console.log(dailyNote);
-				return dailyNote.addUncheckedTasksFrom(lastDailyNote)
-			});
+			.then((dailyNote: DailyNote) => dailyNote.addUncheckedTasksFrom(lastDailyNote));
 	}
 
 	async loadSettings() {
