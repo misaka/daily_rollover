@@ -22,7 +22,8 @@ export class DailyNote {
 			if (!uncheckedTasks) return;
 
 			uncheckedTasks.forEach((task: Task) => {
-				console.log("Adding task: ", task);
+                if (!section.tasks.map(t => t.task).includes(task.task))
+                    section.tasks.push(task);
 			});
 		});
 	}
@@ -46,7 +47,7 @@ export class Section {
 	}
 
 	uncheckedTasks(): Array<Task> {
-		return this.tasks.filter((t: Task) => t.isChecked());
+		return this.tasks.filter((t: Task) => !t.isChecked());
 	}
 
 	hasUncheckedTasks(): boolean {
